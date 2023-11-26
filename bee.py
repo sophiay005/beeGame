@@ -262,6 +262,7 @@ app.flowers = [
     Flower (200,300)
 ]   
 
+
 def onAppStart(app):
     app.player = Player(app.width/2, app.height/2, app.flowers)
     app.helperBee1 = HelperBee(app.width/4, app.height/2, app.flowers)
@@ -274,9 +275,11 @@ def onAppStart(app):
     onStep(app)
     restart(app)
 
+
 def restart(app):
     app.startScreen = True
     app.instructions = False
+
 
 def onMouseMove(app, mouseX, mouseY):
     app.mouseX = mouseX
@@ -292,6 +295,7 @@ def onMouseMove(app, mouseX, mouseY):
     app.player.pollinate(app.flowers)
     app.helperBee1.pollinate(app.flowers)
     app.helperBee2.pollinate(app.flowers)
+
 
 def onStep(app):
     app.counter += 1
@@ -313,6 +317,7 @@ def onStep(app):
     if app.counter % 30 == 0:
         newFlower = Flower(random.randint(40, app.width - 40), app.height + 20)
         app.flowers.append(newFlower)
+
 
 def redrawAll(app):
 
@@ -376,6 +381,7 @@ def redrawAll(app):
         app.helperBee1.drawGatheredPollen()
         app.helperBee2.drawGatheredPollen()
 
+
 def onMousePress(app, mouseX, mouseY):
     #calculates whether the instruction button is pressed 
     cx, cy = app.width*15/16, app.height*15/16
@@ -385,6 +391,7 @@ def onMousePress(app, mouseX, mouseY):
         app.instructions = not app.instructions
     
     buttonPressed(app, mouseX, mouseY)
+
 
 def buttonPressed(app, mouseX, mouseY):
     #if yes! button is pressed, game starts 
@@ -397,6 +404,7 @@ def buttonPressed(app, mouseX, mouseY):
         return True
     return False
 
+
 def onKeyPress(app,key):
     # restart if r pressed
     if key == 'r':
@@ -405,5 +413,7 @@ def onKeyPress(app,key):
     # if escape is pressed, close instructions
     if app.instructions and key == 'escape':
         app.instructions = False
+
+
 
 runApp()
