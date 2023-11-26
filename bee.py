@@ -8,7 +8,7 @@ class Player:
         self.y = y
         self.playerSize = 20
         self.flowerSize = 10
-        self.speed = 5  #this is the speed of the mouse
+        self.speed = 2  #this is the speed of the mouse
         self.pollenInventory = {}
         self.flowers = flowers
 
@@ -47,6 +47,7 @@ class Player:
                     flower.grow()
                     self.growOriginalFlower(flower.color)
                     self.growPollen(flower.color)
+                    del self.pollenInventory[flower.color]
 
     def drawPollenInventory(self):
         # Draw the pollen inventory in the top left corner
@@ -56,18 +57,16 @@ class Player:
             x += 20
 
     def drawGatheredPollen(self):
-        self.pollenX, self.pollenY = self.x, self.y + self.playerSize 
+        pollenX, pollenY = self.x, self.y + self.playerSize 
         pollenSize = 5  # Adjust the size of the gathered pollen circles
         for color, number in self.pollenInventory.items():
-                drawCircle(self.pollenX, self.pollenY, pollenSize, fill=color)
-                self.pollenX -= pollenSize  # Adjust the distance between pollen circles
+                drawCircle(pollenX, pollenY, pollenSize, fill=color)
+                pollenX -= pollenSize  # Adjust the distance between pollen circles
 
-    
     def growPollen(self,color):
         # Find the pollen in the inventory based on color and make it grow
         if color in self.pollenInventory:
             self.pollenInventory[color] += 10
-                
     
     def growOriginalFlower(self, color):
         # Find the original flower based on color and make it grow
@@ -77,73 +76,80 @@ class Player:
     
 
 class Flower:
-    def __init__(self, x, y, color, isPollinator):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.color = color
+        self.color = random.choice(['pink', 'blue', 'purple', 'red'])
         self.flowerSize = 10
-        self.isPollinator = isPollinator
+        self.isPollinator = random.choice([True, False])
         self.gathered = False
+        self.angle = 0  # Initial angle for sinusoidal motion
+        self.wobble = 40  # Adjust this value to control the wobbling 
 
     def drawFlower(self):
         # Draw the flower based on its type (pollinator or not)
         if self.isPollinator:
-            drawCircle(self.x, self.y, self.flowerSize, fill=self.color)
+            drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, self.flowerSize, fill=self.color)
         else:
-            drawCircle(self.x, self.y, self.flowerSize, border=self.color,fill=None)
+            drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, self.flowerSize, border=self.color,fill=None)
     
-    def flowerOnStep(self):
+    def flowerOnStep(self,removeList):
         # Move the flower up the canvas by a fixed amount
         speed = 2  # Adjust this value as needed
         self.y -= speed
 
+        # Update the angle for sinusoidal motion
+        self.angle += 0.05  # Adjust this value for the wobbling effect
+
         # Check if the flower has left the canvas
         if self.y + self.flowerSize < 0:
             # Remove the flower from the list
-            app.toRemove.append(self)
+            removeList.append(self)
     
     def grow(self):
         # For simplicity, instant growth when pollinated
         self.flowerSize += 10
 
-app.toRemove = list()
-
 # Hardcoded flower for testing
 app.flowers = [
-    Flower(100, 100, 'red', True),
-    Flower(200, 200, 'blue', False),
-    Flower(300, 300, 'purple', True),
-    Flower (200,300,'blue', True)
+    Flower(100, 100),
+    Flower(200, 200),
+    Flower(300, 300),
+    Flower (200,300)
 ]   
 
 def onAppStart(app):
     app.player = Player(app.width/2, app.height/2, app.flowers)
     app.counter = 0
+    app.toRemove = []
+    app.mouseX = 0
+    app.mouseY = 0
+    onStep(app)
 
 def onMouseMove(app, mouseX, mouseY):
+    app.mouseX = mouseX
+    app.mouseY = mouseY
     app.player.playerOnStep(mouseX, mouseY)
     app.player.pollinate(app.flowers)
 
 def onStep(app):
     app.counter += 1
-
-def callOnStep(app):
     # Call the player's onStep method
-    app.player.playerOnStep(app)
+    app.player.playerOnStep(app.mouseX, app.mouseY)
 
     # Move and update flowers
     for flower in app.flowers:
-        flower.flowerOnStep(app)
+        flower.flowerOnStep(app.toRemove)
 
     # Remove flowers that have left the top of the canvas
     for flowerToRemove in app.toRemove:
-        app.flowers.remove(flowerToRemove)
+        if flowerToRemove in app.flowers:
+            app.flowers.remove(flowerToRemove)
 
-    # Periodically generate new flowers
-    if app.stepCount % 50 == 0:
-        newFlower = Flower(random.randint(50, app.width - 50), app.height + 20, 'purple', random.choice([True, False]))
+    # Periodically generate new flowers every 30 steps
+    if app.counter % 30 == 0:
+        newFlower = Flower(random.randint(40, app.width - 40), app.height + 20)
         app.flowers.append(newFlower)
-    
 
 def redrawAll(app):
 
