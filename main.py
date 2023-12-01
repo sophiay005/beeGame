@@ -3,136 +3,56 @@ import math
 import random
 from PIL import Image
 
-class Player:
+class Bee:
 
-    def __init__(self, x, y, flowers):
+    def __init__(self, x, y, flowers, isPlayer=False):
         self.x = x
         self.y = y
-        self.playerSize = 20
+        self.size = 15
         self.flowerSize = 10
-        self.speed = 2  #this is the speed of the mouse
-        self.pollenInventory = {}
+        self.speed = 3 if isPlayer else 2
+        self.pollenInventory = []
         self.flowers = flowers
+        self.target = None
+        self.isPlayer = isPlayer
+        self.flowerCount = 1
+        self.pollenSize = 10
 
-
-    def drawPlayer(self):
-        drawCircle(self.x, self.y, self.playerSize, fill='yellow')
-
-
-    def playerOnStep(self, mouseX, mouseY):
-        # Move the bee toward the mouse cursor at a fixed speed
-        dx = mouseX - self.x
-        dy = mouseY - self.y
-        distance = ((dx ** 2) + (dy ** 2)) ** 0.5
-
-        if distance > 0:
-            dx /= distance
-            dy /= distance
-
-        # Move the player
-        self.x += self.speed * dx
-        self.y += self.speed * dy
-
+    def drawBee(self, image):
+        # drawCircle(self.x, self.y, self.playerSize, fill='yellow')
+        drawImage(image, self.x, self.y, width=50, height=50, align='center')
 
     def pollinate(self, flowers):
         # Loop through all flowers
         for flower in flowers:
             distance = ((flower.x - self.x) ** 2 + (flower.y - self.y) ** 2) ** 0.5
 
-            if distance <= (self.playerSize + self.flowerSize):
+            if distance <= (self.size + self.flowerSize):
                 # Check if the flower is a pollinator and not yet gathered
                 if flower.isPollinator and not flower.gathered:
                     flower.gathered = True
-                    self.pollenInventory[flower.color] = self.pollenInventory.get(flower.color, 10)
+                    self.pollenInventory.append(flower.color)
                   
                     # Grow the original flower
                     self.growOriginalFlower(flower)
 
+                    # Remove the flower fill when gathered
+                    flower.fill = None
+
                 # Check if the flower can be pollinated
                 elif not flower.isPollinator and not flower.gathered and flower.color in self.pollenInventory: 
                     flower.gathered = True
                     flower.grow()
+                    self.growPollen(flower.color)
                     
                     # Grow the original flower
                     self.growOriginalFlower(flower)
                    
-                    self.growPollen(flower.color)
-                    del self.pollenInventory[flower.color]
+                    if flower.color in self.pollenInventory:
+                        # Remove the flower color from the list
+                        self.pollenInventory.remove(flower.color)
 
-
-    def drawPollenInventory(self):
-        # Draw the pollen inventory in the top left corner
-        x, y = 20, 20
-        for flowerColor, pollenSize in self.pollenInventory.items():
-            drawCircle(x, y, pollenSize, fill=None, border=flowerColor)
-            x += 20
-
-
-    def drawGatheredPollen(self):
-        pollenX, pollenY = self.x, self.y + self.playerSize 
-        pollenSize = 5  # Adjust the size of the gathered pollen circles
-        for color, number in self.pollenInventory.items():
-                drawCircle(pollenX, pollenY, pollenSize, fill=color)
-                pollenX -= pollenSize  # Adjust the distance between pollen circles
-
-
-    def growPollen(self,color):
-        # Find the pollen in the inventory based on color and make it grow
-        if color in self.pollenInventory:
-            self.pollenInventory[color] += 10
-    
-
-    def growOriginalFlower(self, flower):
-        # Find the original flower based on color and make it grow
-        for originalFlower in self.flowers:
-            if originalFlower.color == flower.color and not originalFlower.gathered and originalFlower.x == flower.x and originalFlower.y == flower.y:
-                originalFlower.grow()
-
-
-
-class HelperBee:
-
-    def __init__(self, x, y, flowers):
-        self.x = x
-        self.y = y
-        self.HelperBeeSize = 20
-        self.flowerSize = 10
-        self.speed = 3  #this is the speed of the bee
-        self.pollenInventory = {}
-        self.flowers = flowers
-        self.target = None
-
-
-    def drawHelperBee(self):
-        drawCircle(self.x, self.y, self.HelperBeeSize, fill='yellow')
-    
-
-    def pollinate(self, flowers):
-        # Loop through all flowers
-        for flower in flowers:
-            distance = ((flower.x - self.x) ** 2 + (flower.y - self.y) ** 2) ** 0.5
-
-            if distance <= (self.HelperBeeSize + self.flowerSize):
-                # Check if the flower is a pollinator and not yet gathered
-                if flower.isPollinator and not flower.gathered:
-                    flower.gathered = True
-                    self.pollenInventory[flower.color] = self.pollenInventory.get(flower.color, 10)
-
-                    # Grow the original flower
-                    self.growOriginalFlower(flower)
-
-                # Check if the flower can be pollinated
-                elif not flower.isPollinator and not flower.gathered and flower.color in self.pollenInventory: 
-                    flower.gathered = True
-                    flower.grow()
-                    
-                    # Grow the original flower
-                    self.growOriginalFlower(flower)
-
-                    self.growPollen(flower.color)
-                    del self.pollenInventory[flower.color]
-    
-
+                        
     def chooseTarget(self, otherBee):
         # If the bee has a target, check if it can still be a target
         if self.target and (self.target.gathered or self.target.isPollinator
@@ -148,15 +68,14 @@ class HelperBee:
 
                     # Check if the flower is close to the other bee
                     otherBeeDistance = ((flower.x - otherBee.x) ** 2 + (flower.y - otherBee.y) ** 2) ** 0.5
-                    if otherBeeDistance < 2 * self.HelperBeeSize:
+                    if otherBeeDistance < 2 * self.size:
                         continue  # Skip this flower if it's close to the other bee
                     
                     if distance < minDistance:
                         minDistance = distance
                         self.target = flower
 
-
-    def helperBeeOnStep(self, otherBee):
+    def helperBeeOnStep(self, otherBee=None):
         # Choose a target flower 
         self.chooseTarget(otherBee)
 
@@ -175,7 +94,7 @@ class HelperBee:
             new_y = self.y + self.speed * dy
 
              # Avoid overlap with the other bee
-            separationDistance = 2 * self.HelperBeeSize  # Adjust this value as needed
+            separationDistance = 2 * self.size  # Adjust this value as needed
             distanceToOtherBee = ((new_x - otherBee.x) ** 2 + (new_y - otherBee.y) ** 2) ** 0.5
 
             if separationDistance < separationDistance:
@@ -185,32 +104,64 @@ class HelperBee:
                 new_y = otherBee.y + separationDistance * math.sin(angle)
 
             # Check if the new position is within the canvas
-            if (0 + self.HelperBeeSize) <= new_x <= (400 - self.HelperBeeSize) and (0 + self.HelperBeeSize) <= new_y <= (400 - self.HelperBeeSize):
+            if (0 + self.size) <= new_x <= (400 - self.size) and (0 + self.size) <= new_y <= (400 - self.size):
                 self.x = new_x
                 self.y = new_y
 
-
     def drawGatheredPollen(self):
-        pollenX, pollenY = self.x, self.y + self.HelperBeeSize 
+        pollenX, pollenY = self.x, self.y + self.size 
         pollenSize = 5  # Adjust the size of the gathered pollen circles
-        for color, number in self.pollenInventory.items():
-                drawCircle(pollenX, pollenY, pollenSize, fill=color)
-                pollenX -= pollenSize  # Adjust the distance between pollen circles
-
+        for color in self.pollenInventory:
+            drawCircle(pollenX, pollenY, pollenSize, fill=color)
+            pollenX -= pollenSize  # Adjust the distance between pollen circles
 
     def growPollen(self,color):
-        # Find the pollen in the inventory based on color and make it grow
         if color in self.pollenInventory:
-            self.pollenInventory[color] += 10
-    
+            self.pollenSize += 10
+
 
     def growOriginalFlower(self, flower):
         # Find the original flower based on color and make it grow
+        # for originalFlower in self.flowers:
+        #     if originalFlower.color == flower.color and not originalFlower.gathered and originalFlower.x == flower.x and originalFlower.y == flower.y:
+        #         originalFlower.grow()
         for originalFlower in self.flowers:
-            if originalFlower.color == flower.color and not originalFlower.gathered and originalFlower.x == flower.x and originalFlower.y == flower.y:
+            if (originalFlower.color == flower.color and not originalFlower.gathered
+                and originalFlower.x == flower.x and originalFlower.y == flower.y):
                 originalFlower.grow()
+        
 
 
+class Player(Bee):
+
+    def __init__(self, x, y, flowers):
+        Bee.__init__(self, x, y, flowers, isPlayer=True)
+
+    def playerOnStep(self, mouseX, mouseY):
+        # Move the bee toward the mouse cursor at a fixed speed
+        dx = mouseX - self.x
+        dy = mouseY - self.y
+        distance = ((dx ** 2) + (dy ** 2)) ** 0.5
+
+        # Set maximum speed and acceleration rate
+        maxSpeed = 5
+        acceleration = 0.1
+
+        # Calculate the speed based on distance
+        speed = min(maxSpeed, acceleration * distance)
+
+        # Move the player to the mouse
+        self.x += speed * dx / distance if distance > 0 else 0
+        self.y += speed * dy / distance if distance > 0 else 0
+
+    def drawPollenInventory(self):
+        # Draw the pollen inventory in the top left corner
+        x, y = 20, 20
+        self.pollenSize = 10  # Adjust the size of the pollen circles
+        for flowerColor in self.pollenInventory:
+            drawCircle(x, y, self.pollenSize, fill=None, border=flowerColor)
+            x += 20
+            
 
 class Flower:
     
@@ -223,17 +174,16 @@ class Flower:
         self.gathered = False
         self.angle = 0  # Initial angle for sinusoidal motion
         self.wobble = 40  # Adjust this value to control the wobbling 
-
+        self.fill = self.color
 
     def drawFlower(self):
         # Draw the flower based on its type (pollinator or not)
         if self.isPollinator:
             drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, self.flowerSize, fill=self.color)
-        else:
+        else: 
             drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, self.flowerSize, border=self.color, fill=None)
             drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, (self.flowerSize - 4), fill=self.color)
     
-
     def flowerOnStep(self,removeList):
         # Move the flower up the canvas by a fixed amount
         speed = 2  # Adjust this value as needed
@@ -247,7 +197,6 @@ class Flower:
             # Remove the flower from the list
             removeList.append(self)
     
-
     def grow(self):
         # For simplicity, instant growth when pollinated
         self.flowerSize += 10
@@ -262,19 +211,38 @@ app.flowers = [
     Flower (200,300)
 ]   
 
-
 def onAppStart(app):
     app.player = Player(app.width/2, app.height/2, app.flowers)
-    app.helperBee1 = HelperBee(app.width/4, app.height/2, app.flowers)
-    app.helperBee2 = HelperBee(3 * app.width/4, app.height/2, app.flowers)
+    app.helperBee1 = Bee(app.width/4, app.height/2, app.flowers)
+    app.helperBee2 = Bee(3 * app.width/4, app.height/2, app.flowers)
     app.counter = 0
     app.toRemove = []
     app.mouseX = 0
     app.mouseY = 0
-    app.beeImage = CMUImage(Image.open('images/beeimage.jpg'))
+    app.backgroundImage = CMUImage(Image.open('images/background.jpg'))
+
+    # Set up animated gif
+    beeGif = Image.open('images/beeGIF.gif')
+    app.spriteList = []
+    for frame in range(beeGif.n_frames):
+        # Set the current frame
+        beeGif.seek(frame)
+        # Resize the image
+        fr = beeGif.resize((beeGif.size[0]//2, beeGif.size[1]//2))
+        # Flip the image
+        fr = fr.transpose(Image.FLIP_LEFT_RIGHT)
+        # Convert to CMUImage
+        fr = CMUImage(fr)
+        # Put in our sprite list
+        app.spriteList.append(fr)
+    
+    # Fix for broken transparency on frame 0
+    # app.spriteList.pop(0)
+    app.spriteCounter = 0
+    app.stepsPerSecond = 20
+
     onStep(app)
     restart(app)
-
 
 def restart(app):
     app.startScreen = True
@@ -317,6 +285,9 @@ def onStep(app):
     if app.counter % 30 == 0:
         newFlower = Flower(random.randint(40, app.width - 40), app.height + 20)
         app.flowers.append(newFlower)
+    
+    # Set spriteCounter to next frame
+    app.spriteCounter = (app.spriteCounter + 1) % len(app.spriteList)
 
 
 def redrawAll(app):
@@ -324,7 +295,7 @@ def redrawAll(app):
     if app.startScreen:
         drawRect(0,0,app.width,app.height)
 
-        drawImage(app.beeImage, app.width/2, app.height/2 - 84, width = 100, height = 100, align = 'center')
+        drawImage(app.spriteList[app.spriteCounter], app.width/2, app.height/2 - 84, width = 100, height = 100, align = 'center')
  
         # heading
         drawLabel('Bee Game', app.width/2, app.height/15, font='monospace', align='center', size=50, bold=True, fill='white')
@@ -362,16 +333,20 @@ def redrawAll(app):
             drawLabel(info8,app.width/2,app.height/3 + 140 , size = 11, fill = 'black',  font='monospace')
 
     else:
+        
+        # Draw the background
+        drawImage(app.backgroundImage, 0, 0, width = app.width, height = app.height)
+
         # Draw the flowers
         for flower in app.flowers:
             flower.drawFlower()
         
         # Draw the helper bees
-        app.helperBee1.drawHelperBee()
-        app.helperBee2.drawHelperBee()
+        app.helperBee1.drawBee(app.spriteList[app.spriteCounter])
+        app.helperBee2.drawBee(app.spriteList[app.spriteCounter])
         
         # Draw the player
-        app.player.drawPlayer()
+        app.player.drawBee(app.spriteList[app.spriteCounter])
         
         # Draw the pollen in the inventory and below the player/helper bee
         app.player.drawPollenInventory()
@@ -417,3 +392,5 @@ def onKeyPress(app,key):
 
 
 runApp()
+
+
