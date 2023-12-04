@@ -15,8 +15,8 @@ class Bee:
         self.flowers = flowers
         self.target = None
         self.isPlayer = isPlayer
-        self.flowerCount = 1
         self.pollenSize = 10
+        self.originalFlower = None
 
     def drawBee(self, image):
         # drawCircle(self.x, self.y, self.playerSize, fill='yellow')
@@ -29,29 +29,26 @@ class Bee:
 
             if distance <= (self.size + self.flowerSize):
                 # Check if the flower is a pollinator and not yet gathered
-                if flower.isPollinator and not flower.gathered:
+                if flower.isPollinator and not flower.gathered and len(self.pollenInventory) < 6:
+                    flower.originalFlower = flower
+                    print(f'gathered: {flower.originalFlower}')
                     flower.gathered = True
-                    self.pollenInventory.append(flower.color)
-                  
-                    # Grow the original flower
-                    self.growOriginalFlower(flower)
-
-                    # Remove the flower fill when gathered
-                    flower.fill = None
+                    self.pollenInventory.append([flower.color, self.pollenSize])
 
                 # Check if the flower can be pollinated
-                elif not flower.isPollinator and not flower.gathered and flower.color in self.pollenInventory: 
-                    flower.gathered = True
-                    flower.grow()
-                    self.growPollen(flower.color)
-                    
-                    # Grow the original flower
-                    self.growOriginalFlower(flower)
-                   
-                    if flower.color in self.pollenInventory:
-                        # Remove the flower color from the list
-                        self.pollenInventory.remove(flower.color)
+                elif not flower.isPollinator and not flower.gathered and not flower.pollinated: 
+                    for list in self.pollenInventory:
+                        if list[0] == flower.color: 
+                            flower.grow()
+                            self.growPollen(flower.color)
+                            
 
+                            # Grow the original flower
+                            print(f'pollinating: {flower.originalFlower}')
+                            self.growOriginalFlower(flower.originalFlower) 
+
+                            flower.pollinated = True
+                            break 
                         
     def chooseTarget(self, otherBee):
         # If the bee has a target, check if it can still be a target
@@ -94,16 +91,18 @@ class Bee:
             new_y = self.y + self.speed * dy
 
              # Avoid overlap with the other bee
-            separationDistance = 2 * self.size  # Adjust this value as needed
+            separationDistance = 2 * self.size 
             distanceToOtherBee = ((new_x - otherBee.x) ** 2 + (new_y - otherBee.y) ** 2) ** 0.5
 
-            if separationDistance < separationDistance:
-                # Adjust position to maintain a safe distance
+            if distanceToOtherBee < separationDistance:
+                # Adjust position for distance
+                # https://www.w3schools.com/python/ref_math_atan2.asp 
                 angle = math.atan2(self.y - otherBee.y, self.x - otherBee.x)
+                # https://www.geeksforgeeks.org/python-math-sin-function/  
                 new_x = otherBee.x + separationDistance * math.cos(angle)
                 new_y = otherBee.y + separationDistance * math.sin(angle)
 
-            # Check if the new position is within the canvas
+            # Check if the new position is in the canvas
             if (0 + self.size) <= new_x <= (400 - self.size) and (0 + self.size) <= new_y <= (400 - self.size):
                 self.x = new_x
                 self.y = new_y
@@ -111,25 +110,25 @@ class Bee:
     def drawGatheredPollen(self):
         pollenX, pollenY = self.x, self.y + self.size 
         pollenSize = 5  # Adjust the size of the gathered pollen circles
-        for color in self.pollenInventory:
-            drawCircle(pollenX, pollenY, pollenSize, fill=color)
-            pollenX -= pollenSize  # Adjust the distance between pollen circles
+        for color,size in self.pollenInventory:
+            if size > 0:
+                drawCircle(pollenX, pollenY, pollenSize, fill=color)
+                pollenX -= pollenSize  # Adjust the distance between pollen circles
 
     def growPollen(self,color):
-        if color in self.pollenInventory:
-            self.pollenSize += 10
+        # print('Grow Pollen')
+        for pollen in self.pollenInventory:
+            if pollen[0] == color and pollen[1] == 10:
+                # Update the size by increasing it by 10
+                pollen[1] += 5
+                # Remove the flower color from the list
+                self.pollenInventory.remove([color,15])
+                break  # Makes sure that only one flower grows
 
-
-    def growOriginalFlower(self, flower):
-        # Find the original flower based on color and make it grow
-        # for originalFlower in self.flowers:
-        #     if originalFlower.color == flower.color and not originalFlower.gathered and originalFlower.x == flower.x and originalFlower.y == flower.y:
-        #         originalFlower.grow()
-        for originalFlower in self.flowers:
-            if (originalFlower.color == flower.color and not originalFlower.gathered
-                and originalFlower.x == flower.x and originalFlower.y == flower.y):
+    def growOriginalFlower(self, originalFlower):
+        for flower in self.flowers:
+            if flower is originalFlower and not flower.gathered:
                 originalFlower.grow()
-        
 
 
 class Player(Bee):
@@ -143,7 +142,7 @@ class Player(Bee):
         dy = mouseY - self.y
         distance = ((dx ** 2) + (dy ** 2)) ** 0.5
 
-        # Set maximum speed and acceleration rate
+        # Set maximum speed and acceleration 
         maxSpeed = 5
         acceleration = 0.1
 
@@ -156,10 +155,9 @@ class Player(Bee):
 
     def drawPollenInventory(self):
         # Draw the pollen inventory in the top left corner
-        x, y = 20, 20
-        self.pollenSize = 10  # Adjust the size of the pollen circles
-        for flowerColor in self.pollenInventory:
-            drawCircle(x, y, self.pollenSize, fill=None, border=flowerColor)
+        x, y = 20, 20 
+        for color, size in self.pollenInventory:
+            drawCircle(x, y, size, fill=None, border=color, borderWidth = 4)
             x += 20
             
 
@@ -168,17 +166,24 @@ class Flower:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.color = random.choice(['pink', 'blue', 'purple', 'red'])
+        self.color = random.choice(['pink', 'blue', 'purple', 'red']) # https://www.w3schools.com/python/ref_random_choice.asp
         self.flowerSize = 10
         self.isPollinator = random.choice([True, False])
         self.gathered = False
+        self.pollinated = False
+        self.originalFlower = None
         self.angle = 0  # Initial angle for sinusoidal motion
         self.wobble = 40  # Adjust this value to control the wobbling 
         self.fill = self.color
+    
+    def __repr__(self):
+        return f'Flower X: {self.x}  Flower Y:{self.y}'
 
     def drawFlower(self):
         # Draw the flower based on its type (pollinator or not)
-        if self.isPollinator:
+        if self.gathered: 
+            drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, self.flowerSize, border=self.color,borderWidth = 4, fill=None)
+        elif self.isPollinator:
             drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, self.flowerSize, fill=self.color)
         else: 
             drawCircle(self.x + math.sin(self.angle) * self.wobble, self.y, self.flowerSize, border=self.color, fill=None)
@@ -224,6 +229,7 @@ def onAppStart(app):
     # Set up animated gif
     beeGif = Image.open('images/beeGIF.gif')
     app.spriteList = []
+    #I got the code below from cmu F23_Demos folder's animatedGifs.py
     for frame in range(beeGif.n_frames):
         # Set the current frame
         beeGif.seek(frame)
@@ -281,8 +287,8 @@ def onStep(app):
         if flowerToRemove in app.flowers:
             app.flowers.remove(flowerToRemove)
 
-    # Periodically generate new flowers every 30 steps
-    if app.counter % 30 == 0:
+    # Periodically generate new flowers every 20 steps
+    if app.counter % 20 == 0:
         newFlower = Flower(random.randint(40, app.width - 40), app.height + 20)
         app.flowers.append(newFlower)
     
