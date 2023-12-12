@@ -234,6 +234,8 @@ def onAppStart(app):
     app.toRemove = []
     app.mouseX = 0
     app.mouseY = 0
+    app.startScreen = True
+    app.instructions = False
     app.backgroundImage = CMUImage(Image.open('images/background.jpg'))
 
     # Set up animated gif
@@ -258,12 +260,6 @@ def onAppStart(app):
     app.stepsPerSecond = 20
 
     onStep(app)
-    restart(app)
-
-
-def restart(app):
-    app.startScreen = True
-    app.instructions = False
 
 
 def onMouseMove(app, mouseX, mouseY):
@@ -398,10 +394,6 @@ def buttonPressed(app, mouseX, mouseY):
 
 
 def onKeyPress(app,key):
-    # Restart if r pressed
-    if key == 'r':
-        restart(app)
-
     # if escape is pressed, close instructions
     if app.instructions and key == 'escape':
         app.instructions = False
